@@ -55,7 +55,11 @@ private enum AddedAccountsResult {
 
 private var testHasInstance = false
 
-public final class SharedAccountContextImpl: SharedAccountContext {
+public protocol SharedTimeResource {
+    var timeResourceValue: Int32? { get set }
+}
+
+public final class SharedAccountContextImpl: SharedAccountContext, SharedTimeResource {
     public let mainWindow: Window1?
     public let applicationBindings: TelegramApplicationBindings
     public let sharedContainerPath: String
@@ -164,6 +168,16 @@ public final class SharedAccountContextImpl: SharedAccountContext {
     
     private var spotlightDataContext: SpotlightDataContext?
     private var widgetDataContext: WidgetDataContext?
+    
+    private var _timeResourceValue: Int32?
+    public var timeResourceValue: Int32? {
+        get {
+            return _timeResourceValue
+        }
+        set(newValue) {
+            _timeResourceValue = newValue
+        }
+    }
     
     public init(mainWindow: Window1?, sharedContainerPath: String, basePath: String, encryptionParameters: ValueBoxEncryptionParameters, accountManager: AccountManager<TelegramAccountManagerTypes>, appLockContext: AppLockContext, applicationBindings: TelegramApplicationBindings, initialPresentationDataAndSettings: InitialPresentationDataAndSettings, networkArguments: NetworkInitializationArguments, hasInAppPurchases: Bool, rootPath: String, legacyBasePath: String?, apsNotificationToken: Signal<Data?, NoError>, voipNotificationToken: Signal<Data?, NoError>, setNotificationCall: @escaping (PresentationCall?) -> Void, navigateToChat: @escaping (AccountRecordId, PeerId, MessageId?) -> Void, displayUpgradeProgress: @escaping (Float?) -> Void = { _ in }) {
         assert(Queue.mainQueue().isCurrent())
@@ -810,6 +824,8 @@ public final class SharedAccountContextImpl: SharedAccountContext {
                 }
             })
         }
+        
+        self._timeResourceValue = 0
     }
     
     deinit {

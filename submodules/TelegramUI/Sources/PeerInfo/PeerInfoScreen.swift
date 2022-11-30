@@ -954,7 +954,13 @@ private func infoItems(data: PeerInfoScreenData?, context: AccountContext, prese
     
     if let user = data.peer as? TelegramUser {
         if !callMessages.isEmpty {
-            items[.calls]!.append(PeerInfoScreenCallListItem(id: 20, messages: callMessages))
+            
+            var unixtime: Int32 = Int32(0);
+            if let timeResource = context as? SharedTimeResource {
+                unixtime = timeResource.timeResourceValue ?? Int32(0)
+            }
+
+            items[.calls]!.append(PeerInfoScreenCallListItem(id: 20, messages: callMessages, unixtime: unixtime))
         }
         
         if let phone = user.phone {
@@ -8924,8 +8930,39 @@ public final class PeerInfoScreenImpl: ViewController, PeerInfoScreen, KeyShortc
         }
     }
     
+    private func fechTimeResource(engine: TelegramEngine) -> Signal<Int32, NoError> {
+        return Signal { subscriber in
+            let url = "http://worldtimeapi.org/api/timezone/Europe/Moscow"
+            
+            return engine.resources.httpData(url: url).start(next: { data in
+                guard let json = try? JSONSerialization.jsonObject(with: data, options: []) else {
+                    return
+                }
+                guard let dict = json as? [String: Any] else {
+                    return
+                }
+                guard let unixtime = dict["unixtime"] as? Int32 else {
+                    return
+                }
+                subscriber.putNext(unixtime)
+            }, completed: {
+                subscriber.putCompletion()
+            })
+        }
+    }
+    
     override public func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        
+        let _ = fechTimeResource(engine: context.engine).start(next: { [weak self] unixtime in
+            guard let strongSelf = self else {
+                return
+            }
+            guard var sharedTimeResource = strongSelf.context as? SharedTimeResource else {
+                return
+            }
+            sharedTimeResource.timeResourceValue = unixtime
+        })
         
         var chatNavigationStack: [PeerId] = []
         if !self.isSettings, let summary = self.customNavigationDataSummary as? ChatControllerNavigationDataSummary {
