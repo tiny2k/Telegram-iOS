@@ -8,6 +8,7 @@ import tempfile
 import subprocess
 import shutil
 import glob
+import json
 
 from BuildEnvironment import resolve_executable, call_executable, run_executable_with_output, BuildEnvironment
 from ProjectGeneration import generate
@@ -467,12 +468,36 @@ def resolve_codesigning(arguments, base_path, build_configuration, provisioning_
 
     return ResolvedCodesigningData(aps_environment=profile_source.resolve_aps_environment())
 
+def convert_keyvalue_pairs_into_json(input):
+    result = {}
+    for line in input.split('\n'):
+        line_parts = line.split('=')
+        key = line_parts[0].strip().replace('telegram_', "")
+        value = line_parts[1].strip().replace('"', "")
+        result[key] = value
+        
+    return result
+
+def prepare_configuration_file(path):
+    json_configuration_file = path + '/variables.json'
+    bzl_configuration_file = path + '/variables.bzl'
+    if not os.path.exists(json_configuration_file):
+        with open(bzl_configuration_file) as bzl_file:
+            file_contents = bzl_file.read()
+            if file_contents[0] != '[' and file_contents[0] != '{':
+                configuration_dict = convert_keyvalue_pairs_into_json(file_contents)
+            else:
+                configuration_dict = json.loads(file_contents)
+                
+            with open(json_configuration_file, 'w') as json_file:
+                json.dump(configuration_dict, json_file)
 
 def resolve_configuration(base_path, bazel_command_line: BazelCommandLine, arguments, additional_codesigning_output_path):
     configuration_repository_path = '{}/build-input/configuration-repository'.format(base_path)
     os.makedirs(configuration_repository_path, exist_ok=True)
 
-    build_configuration = build_configuration_from_json(path=arguments.configurationPath)
+    prepare_configuration_file(arguments.configurationPath)
+    build_configuration = build_configuration_from_json(path=arguments.configurationPath + '/variables.json')
 
     with open(configuration_repository_path + '/WORKSPACE', 'w+') as file:
         pass
