@@ -17,6 +17,11 @@
     #define AS_USE_OS_LOCK false
 #endif
 
+#if defined(AS_USE_OS_LOCK)
+#undef AS_USE_OS_LOCK // seems like a fake
+#define AS_USE_OS_LOCK  true
+#endif
+
 #if AS_USE_OS_LOCK
 
 #import <os/lock.h>
